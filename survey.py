@@ -4,21 +4,21 @@ import os
 from datetime import datetime
 
 st.set_page_config(
-    page_title="Planning Survey",
-    page_icon="📋",
+    page_title="Psychological State Survey",
+    page_icon="🧠",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-SURVEY_TITLE: str = "Weekly Planning & Goal Achievement Survey"
-MAX_OPTION_SCORE: int = 3
+SURVEY_TITLE: str = "Psychological State Survey"
+MAX_OPTION_SCORE: int = 4
 PASSING_RATE: float = 0.5
-SCORE_RANGE: range = range(0, 4)
+SCORE_RANGE: range = range(0, 5)
 ALLOWED_CHARS: set = {"-", "'", " "}
 VALID_FORMATS: frozenset = frozenset({"json"})
 MENU_OPTIONS: tuple = (
-    "🆕  Start a New Questionnaire",
-    "📂  Load Existing Results"
+    "🆕 Start a New Questionnaire",
+    "📂 Load Existing Results"
 )
 QUESTIONS_FILE: str = "survey_questions.json"
 
@@ -76,43 +76,43 @@ QUESTION_COUNT: int = len(QUESTIONS)
 STATES: list = [
     {
         "min_score": 0,
-        "max_score": 12,
-        "label": "Highly Effective Planner",
-        "summary": "Exceptional planning frequency and goal achievement.",
-        "description": "Strong self-regulatory habits are visible; no immediate intervention is needed.",
+        "max_score": 15,
+        "label": "Very Low Distress",
+        "summary": "Your responses suggest a stable psychological state with low emotional distress.",
+        "description": "You appear to manage emotions and daily pressures well. Continue maintaining healthy routines and self-care habits.",
         "emoji": "🟢"
     },
     {
-        "min_score": 13,
-        "max_score": 24,
-        "label": "Effective Planner",
-        "summary": "Good planning consistency with solid goal achievement.",
-        "description": "Current habits are working well; only minor improvements are likely to be needed.",
+        "min_score": 16,
+        "max_score": 30,
+        "label": "Low Distress",
+        "summary": "Your responses show mild emotional strain, but overall coping appears effective.",
+        "description": "There may be occasional stress or tension, but it is generally manageable. Continued self-awareness and balance are recommended.",
         "emoji": "🟡"
     },
     {
-        "min_score": 25,
-        "max_score": 36,
-        "label": "Moderate Planner",
-        "summary": "Planning is present, but goal achievement is inconsistent.",
-        "description": "Refining goal structure, planning detail, and weekly review habits would improve results.",
+        "min_score": 31,
+        "max_score": 45,
+        "label": "Moderate Distress",
+        "summary": "Your responses suggest a noticeable level of stress, anxiety, or emotional pressure.",
+        "description": "You may benefit from improving rest, self-regulation, and support strategies before symptoms intensify.",
         "emoji": "🟠"
     },
     {
-        "min_score": 37,
-        "max_score": 48,
-        "label": "Inconsistent Planner",
-        "summary": "Planning sessions are irregular and goal achievement is low.",
-        "description": "Increasing planning frequency and adding stronger accountability would be advisable.",
+        "min_score": 46,
+        "max_score": 60,
+        "label": "High Distress",
+        "summary": "Your responses indicate a high level of emotional strain and reduced psychological comfort.",
+        "description": "It would be advisable to actively address stressors and seek support from trusted people or appropriate wellbeing resources.",
         "emoji": "🔴"
     },
     {
-        "min_score": 49,
-        "max_score": 60,
-        "label": "Disengaged Planner",
-        "summary": "There is little structured planning and planned goals are rarely achieved.",
-        "description": "A more supportive structure around self-regulation and goal setting is strongly recommended.",
-        "emoji": "🔴"
+        "min_score": 61,
+        "max_score": 75,
+        "label": "Very High Distress",
+        "summary": "Your responses suggest significant psychological stress or emotional difficulty.",
+        "description": "You may be experiencing serious strain. Seeking timely support from a counsellor, psychologist, or mental health professional is strongly recommended.",
+        "emoji": "🚨"
     }
 ]
 
@@ -136,9 +136,11 @@ def validate_dob(dob_str: str) -> tuple:
 def validate_student_id(sid: str) -> tuple:
     if not sid.strip():
         return False, "Student ID cannot be empty."
-    for ch in sid:
-        if not ch.isdigit():
+    i: int = 0
+    while i < len(sid):
+        if not sid[i].isdigit():
             return False, "Student ID must contain digits only."
+        i += 1
     return True, ""
 
 def compute_score(answers: list) -> int:
@@ -160,16 +162,16 @@ def build_result(user_info: dict, answers: list) -> dict:
     percentage: float = round((total_score / (QUESTION_COUNT * MAX_OPTION_SCORE)) * 100, 2)
     state: dict = get_state(total_score)
 
-    if total_score <= 12:
-        note: str = "Excellent! Keep up the great work."
-    elif total_score <= 24:
-        note = "Well done. Small refinements can take you further."
-    elif total_score <= 36:
-        note = "There is room for improvement in your planning habits."
-    elif total_score <= 48:
-        note = "Consider building more structure into your weekly routine."
+    if total_score <= 15:
+        note: str = "Your responses suggest a healthy overall psychological balance."
+    elif total_score <= 30:
+        note = "Your responses show mild strain, but your condition appears manageable."
+    elif total_score <= 45:
+        note = "Your responses suggest moderate emotional pressure that may need attention."
+    elif total_score <= 60:
+        note = "Your responses indicate high emotional strain and a need for stronger coping support."
     else:
-        note = "Seeking guidance on goal-setting strategies is strongly advised."
+        note = "Your responses suggest very high distress. Seeking professional support would be strongly advisable."
 
     return {
         "surname": user_info["surname"],
@@ -188,7 +190,7 @@ if "page" not in st.session_state:
     st.session_state.page = "menu"
 
 def page_menu() -> None:
-    st.title("📋 " + SURVEY_TITLE)
+    st.title("🧠 " + SURVEY_TITLE)
     st.caption("Westminster International University in Tashkent · 4BUIS008C")
     st.divider()
     st.subheader("Main Menu")
@@ -204,7 +206,7 @@ def page_menu() -> None:
             st.rerun()
 
 def page_details() -> None:
-    st.title("📋 " + SURVEY_TITLE)
+    st.title("🧠 " + SURVEY_TITLE)
     st.progress(0.15)
     st.caption("Step 1 of 3 – Personal Details")
     st.divider()
@@ -260,9 +262,9 @@ def page_details() -> None:
             st.rerun()
 
 def page_survey() -> None:
-    st.title("📋 " + SURVEY_TITLE)
+    st.title("🧠 " + SURVEY_TITLE)
     st.progress(0.55)
-    st.caption(f"Step 2 of 3 – Questionnaire  ·  Answer all {QUESTION_COUNT} questions")
+    st.caption(f"Step 2 of 3 – Questionnaire · Answer all {QUESTION_COUNT} questions")
     st.divider()
 
     with st.form("survey_form"):
@@ -329,7 +331,7 @@ def page_results() -> None:
             st.rerun()
         return
 
-    st.title("📋 " + SURVEY_TITLE)
+    st.title("🧠 " + SURVEY_TITLE)
     st.progress(1.0)
     st.caption("Step 3 of 3 – Your Results")
     st.divider()
@@ -348,7 +350,7 @@ def page_results() -> None:
         st.metric("Percentage", f"{result['percentage']} %")
 
     st.divider()
-    st.subheader(f"{emoji}  {state_info['label']}")
+    st.subheader(f"{emoji} {state_info['label']}")
     st.write(f"**Summary:** {state_info['summary']}")
     st.write(f"**Advice:** {state_info['description']}")
     st.info(f"💡 {result['category_note']}")
@@ -358,7 +360,7 @@ def page_results() -> None:
     filename: str = f"{result['student_id']}_survey_result.json"
 
     st.download_button(
-        label="⬇️  Download Results as JSON",
+        label="⬇️ Download Results as JSON",
         data=json_str,
         file_name=filename,
         mime="application/json",
@@ -366,13 +368,13 @@ def page_results() -> None:
     )
 
     st.write("")
-    if st.button("🔄  Take Survey Again", use_container_width=True):
+    if st.button("🔄 Take Survey Again", use_container_width=True):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
 def page_load() -> None:
-    st.title("📋 " + SURVEY_TITLE)
+    st.title("🧠 " + SURVEY_TITLE)
     st.subheader("Load Existing Results")
     st.caption("Upload a JSON file that was previously downloaded from this survey.")
     st.divider()
@@ -390,18 +392,18 @@ def page_load() -> None:
 
             col1, col2 = st.columns(2)
             with col1:
-                st.info(f"👤 **Name:** {result.get('surname','?')}, {result.get('given_name','?')}")
-                st.info(f"🎂 **Date of Birth:** {result.get('dob','?')}")
-                st.info(f"🪪 **Student ID:** {result.get('student_id','?')}")
-                st.info(f"📅 **Date Taken:** {result.get('date_taken','?')}")
+                st.info(f"👤 **Name:** {result.get('surname', '?')}, {result.get('given_name', '?')}")
+                st.info(f"🎂 **Date of Birth:** {result.get('dob', '?')}")
+                st.info(f"🪪 **Student ID:** {result.get('student_id', '?')}")
+                st.info(f"📅 **Date Taken:** {result.get('date_taken', '?')}")
             with col2:
-                st.metric("Total Score", f"{result.get('total_score','?')} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
-                st.metric("Percentage", f"{result.get('percentage','?')} %")
+                st.metric("Total Score", f"{result.get('total_score', '?')} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
+                st.metric("Percentage", f"{result.get('percentage', '?')} %")
 
             st.divider()
-            st.subheader(f"{emoji}  {state_info.get('label','Unknown')}")
-            st.write(f"**Summary:** {state_info.get('summary','')}")
-            st.write(f"**Advice:** {state_info.get('description','')}")
+            st.subheader(f"{emoji} {state_info.get('label', 'Unknown')}")
+            st.write(f"**Summary:** {state_info.get('summary', '')}")
+            st.write(f"**Advice:** {state_info.get('description', '')}")
             if result.get("category_note"):
                 st.info(f"💡 {result['category_note']}")
 
