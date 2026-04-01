@@ -1,18 +1,8 @@
-"""
-Weekly Planning Session Frequency and Goal Achievement Rate Survey
-Module  : Fundamentals of Programming, 4BUIS008C (Level 4)
-Task    : Project 1 – Psychological State Survey (Web Application)
-Language: Python 3  |  Framework: Streamlit
-Run     : streamlit run survey.py
-Deploy  : https://share.streamlit.io
-"""
-
 import streamlit as st
 import json
 import os
 from datetime import datetime
 
-# ─── st.set_page_config MUST be the very first Streamlit call ─────────────────
 st.set_page_config(
     page_title="Planning Survey",
     page_icon="📋",
@@ -20,102 +10,119 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ─── Variable type declarations ────────────────────────────────────────────────
-SURVEY_TITLE: str        = "Weekly Planning & Goal Achievement Survey"
-MAX_OPTION_SCORE: int    = 3
-PASSING_RATE: float      = 0.5
-SCORE_RANGE: range       = range(0, 4)
-ALLOWED_CHARS: set       = {"-", "'", " "}
+SURVEY_TITLE: str = "Weekly Planning & Goal Achievement Survey"
+MAX_OPTION_SCORE: int = 3
+PASSING_RATE: float = 0.5
+SCORE_RANGE: range = range(0, 4)
+ALLOWED_CHARS: set = {"-", "'", " "}
 VALID_FORMATS: frozenset = frozenset({"json"})
-MENU_OPTIONS: tuple      = (
+MENU_OPTIONS: tuple = (
     "🆕  Start a New Questionnaire",
     "📂  Load Existing Results"
 )
-
 QUESTIONS_FILE: str = "survey_questions.json"
 
-# ─── Load questions from JSON file ────────────────────────────────────────────
 def load_questions(file_path: str) -> list:
-    """
-    Load survey questions from a JSON file stored beside survey.py.
-    """
     if not os.path.exists(file_path):
-        st.error(
-            f"Questions file '{file_path}' was not found. "
-            "Make sure it is in the same folder as survey.py."
-        )
+        st.error(f"Questions file '{file_path}' was not found.")
         st.stop()
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            questions = json.load(f)
+            data = json.load(f)
+
+        if isinstance(data, list):
+            questions = data
+        elif isinstance(data, dict) and "questions" in data:
+            questions = data["questions"]
+        else:
+            st.error("Invalid JSON structure.")
+            st.stop()
 
         if not isinstance(questions, list) or len(questions) == 0:
             st.error("The questions JSON file is empty or invalid.")
             st.stop()
 
+        for q in questions:
+            if not isinstance(q, dict):
+                st.error("Each question must be an object.")
+                st.stop()
+            if "id" not in q or "text" not in q or "options" not in q:
+                st.error("Each question must contain 'id', 'text', and 'options'.")
+                st.stop()
+            if not isinstance(q["options"], list) or len(q["options"]) == 0:
+                st.error("Each question must have a non-empty options list.")
+                st.stop()
+            for opt in q["options"]:
+                if not isinstance(opt, dict):
+                    st.error("Each option must be an object.")
+                    st.stop()
+                if "label" not in opt or "score" not in opt:
+                    st.error("Each option must contain 'label' and 'score'.")
+                    st.stop()
+
         return questions
+
+    except json.JSONDecodeError as e:
+        st.error(f"JSON format error: {e}")
+        st.stop()
     except Exception as e:
         st.error(f"Could not read questions file: {e}")
         st.stop()
 
-
 QUESTIONS: list = load_questions(QUESTIONS_FILE)
 QUESTION_COUNT: int = len(QUESTIONS)
 
-# ─── Psychological state bands ────────────────────────────────────────────────
 STATES: list = [
     {
-        "min_score": 0,  "max_score": 12,
-        "label":       "Highly Effective Planner",
-        "summary":     "Exceptional planning frequency and goal achievement.",
+        "min_score": 0,
+        "max_score": 12,
+        "label": "Highly Effective Planner",
+        "summary": "Exceptional planning frequency and goal achievement.",
         "description": "Strong self-regulatory habits are visible; no immediate intervention is needed.",
-        "emoji":       "🟢"
+        "emoji": "🟢"
     },
     {
-        "min_score": 13, "max_score": 24,
-        "label":       "Effective Planner",
-        "summary":     "Good planning consistency with solid goal achievement.",
+        "min_score": 13,
+        "max_score": 24,
+        "label": "Effective Planner",
+        "summary": "Good planning consistency with solid goal achievement.",
         "description": "Current habits are working well; only minor improvements are likely to be needed.",
-        "emoji":       "🟡"
+        "emoji": "🟡"
     },
     {
-        "min_score": 25, "max_score": 36,
-        "label":       "Moderate Planner",
-        "summary":     "Planning is present, but goal achievement is inconsistent.",
+        "min_score": 25,
+        "max_score": 36,
+        "label": "Moderate Planner",
+        "summary": "Planning is present, but goal achievement is inconsistent.",
         "description": "Refining goal structure, planning detail, and weekly review habits would improve results.",
-        "emoji":       "🟠"
+        "emoji": "🟠"
     },
     {
-        "min_score": 37, "max_score": 48,
-        "label":       "Inconsistent Planner",
-        "summary":     "Planning sessions are irregular and goal achievement is low.",
+        "min_score": 37,
+        "max_score": 48,
+        "label": "Inconsistent Planner",
+        "summary": "Planning sessions are irregular and goal achievement is low.",
         "description": "Increasing planning frequency and adding stronger accountability would be advisable.",
-        "emoji":       "🔴"
+        "emoji": "🔴"
     },
     {
-        "min_score": 49, "max_score": 60,
-        "label":       "Disengaged Planner",
-        "summary":     "There is little structured planning and planned goals are rarely achieved.",
+        "min_score": 49,
+        "max_score": 60,
+        "label": "Disengaged Planner",
+        "summary": "There is little structured planning and planned goals are rarely achieved.",
         "description": "A more supportive structure around self-regulation and goal setting is strongly recommended.",
-        "emoji":       "🔴"
+        "emoji": "🔴"
     }
 ]
-
-
-# ─── User-defined functions ───────────────────────────────────────────────────
 
 def validate_name_chars(name: str) -> tuple:
     if not name.strip():
         return False, "This field cannot be empty."
     for char in name:
         if not (char.isalpha() or char in ALLOWED_CHARS):
-            return False, (
-                f"Invalid character '{char}'. "
-                "Only letters, hyphens (-), apostrophes ('), and spaces are allowed."
-            )
+            return False, f"Invalid character '{char}'. Only letters, hyphens (-), apostrophes ('), and spaces are allowed."
     return True, ""
-
 
 def validate_dob(dob_str: str) -> tuple:
     try:
@@ -126,7 +133,6 @@ def validate_dob(dob_str: str) -> tuple:
     except ValueError:
         return False, "Invalid date. Please use DD/MM/YYYY format (e.g. 15/03/2003)."
 
-
 def validate_student_id(sid: str) -> tuple:
     if not sid.strip():
         return False, "Student ID cannot be empty."
@@ -134,7 +140,6 @@ def validate_student_id(sid: str) -> tuple:
         if not ch.isdigit():
             return False, "Student ID must contain digits only."
     return True, ""
-
 
 def compute_score(answers: list) -> int:
     total: int = 0
@@ -144,13 +149,11 @@ def compute_score(answers: list) -> int:
         i += 1
     return total
 
-
 def get_state(score: int) -> dict:
     for state in STATES:
         if state["min_score"] <= score <= state["max_score"]:
             return state
     return STATES[-1]
-
 
 def build_result(user_info: dict, answers: list) -> dict:
     total_score: int = compute_score(answers)
@@ -181,13 +184,9 @@ def build_result(user_info: dict, answers: list) -> dict:
         "answers": answers
     }
 
-
-# ─── Session state initialisation ─────────────────────────────────────────────
 if "page" not in st.session_state:
     st.session_state.page = "menu"
 
-
-# ─── Page: Menu ────────────────────────────────────────────────────────────────
 def page_menu() -> None:
     st.title("📋 " + SURVEY_TITLE)
     st.caption("Westminster International University in Tashkent · 4BUIS008C")
@@ -204,8 +203,6 @@ def page_menu() -> None:
                 st.session_state.page = "load"
             st.rerun()
 
-
-# ─── Page: Personal Details ───────────────────────────────────────────────────
 def page_details() -> None:
     st.title("📋 " + SURVEY_TITLE)
     st.progress(0.15)
@@ -215,27 +212,10 @@ def page_details() -> None:
     prev: dict = st.session_state.get("user_info", {})
 
     with st.form("details_form"):
-        surname = st.text_input(
-            "Surname *",
-            value=prev.get("surname", ""),
-            placeholder="e.g. Smith-Jones"
-        )
-        given_name = st.text_input(
-            "Given Name *",
-            value=prev.get("given_name", ""),
-            placeholder="e.g. Mary Ann"
-        )
-        dob = st.text_input(
-            "Date of Birth * (DD/MM/YYYY)",
-            value=prev.get("dob", ""),
-            placeholder="15/03/2003"
-        )
-        student_id = st.text_input(
-            "Student ID * (digits only)",
-            value=prev.get("student_id", ""),
-            placeholder="202301234"
-        )
-
+        surname = st.text_input("Surname *", value=prev.get("surname", ""), placeholder="e.g. Smith-Jones")
+        given_name = st.text_input("Given Name *", value=prev.get("given_name", ""), placeholder="e.g. Mary Ann")
+        dob = st.text_input("Date of Birth * (DD/MM/YYYY)", value=prev.get("dob", ""), placeholder="15/03/2003")
+        student_id = st.text_input("Student ID * (digits only)", value=prev.get("student_id", ""), placeholder="202301234")
         st.write("")
         col1, col2 = st.columns(2)
         with col1:
@@ -279,8 +259,6 @@ def page_details() -> None:
             st.session_state.page = "survey"
             st.rerun()
 
-
-# ─── Page: Survey ─────────────────────────────────────────────────────────────
 def page_survey() -> None:
     st.title("📋 " + SURVEY_TITLE)
     st.progress(0.55)
@@ -337,14 +315,10 @@ def page_survey() -> None:
                         })
                         break
 
-            st.session_state.result = build_result(
-                st.session_state.user_info, answers
-            )
+            st.session_state.result = build_result(st.session_state.user_info, answers)
             st.session_state.page = "results"
             st.rerun()
 
-
-# ─── Page: Results ────────────────────────────────────────────────────────────
 def page_results() -> None:
     result: dict = st.session_state.get("result", {})
 
@@ -397,8 +371,6 @@ def page_results() -> None:
             del st.session_state[key]
         st.rerun()
 
-
-# ─── Page: Load Results ───────────────────────────────────────────────────────
 def page_load() -> None:
     st.title("📋 " + SURVEY_TITLE)
     st.subheader("Load Existing Results")
@@ -441,8 +413,6 @@ def page_load() -> None:
         st.session_state.page = "menu"
         st.rerun()
 
-
-# ─── Router – runs on every Streamlit rerun ───────────────────────────────────
 current_page: str = st.session_state.page
 
 if current_page == "menu":
