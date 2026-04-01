@@ -1,6 +1,6 @@
 """
 Weekly Planning Session Frequency and Goal Achievement Rate Survey
-Module  : Fundamentals of Programming,
+Module  : Fundamentals of Programming, 4BUIS008C (Level 4)
 Task    : Project 1 – Psychological State Survey (Web Application)
 Language: Python 3  |  Framework: Streamlit
 Run     : streamlit run survey.py
@@ -9,6 +9,7 @@ Deploy  : https://share.streamlit.io
 
 import streamlit as st
 import json
+import os
 from datetime import datetime
 
 # ─── st.set_page_config MUST be the very first Streamlit call ─────────────────
@@ -19,19 +20,48 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ─── Variable type declarations (10 pts – 1 pt per type) ─────────────────────
+# ─── Variable type declarations ────────────────────────────────────────────────
 SURVEY_TITLE: str        = "Weekly Planning & Goal Achievement Survey"
-QUESTION_COUNT: int      = 20                      # int
-MAX_OPTION_SCORE: int    = 3                       # int  – max score per question
-PASSING_RATE: float      = 0.5                     # float – 50 % reference threshold
-SCORE_RANGE: range       = range(0, 4)             # range – valid option scores 0-3
-ALLOWED_CHARS: set       = {"-", "'", " "}         # set   – allowed non-letter chars
-VALID_FORMATS: frozenset = frozenset({"json"})     # frozenset – accepted file formats
-MENU_OPTIONS: tuple      = (                       # tuple – main menu labels
+MAX_OPTION_SCORE: int    = 3
+PASSING_RATE: float      = 0.5
+SCORE_RANGE: range       = range(0, 4)
+ALLOWED_CHARS: set       = {"-", "'", " "}
+VALID_FORMATS: frozenset = frozenset({"json"})
+MENU_OPTIONS: tuple      = (
     "🆕  Start a New Questionnaire",
     "📂  Load Existing Results"
 )
 
+QUESTIONS_FILE: str = "survey_questions.json"
+
+# ─── Load questions from JSON file ────────────────────────────────────────────
+def load_questions(file_path: str) -> list:
+    """
+    Load survey questions from a JSON file stored beside survey.py.
+    """
+    if not os.path.exists(file_path):
+        st.error(
+            f"Questions file '{file_path}' was not found. "
+            "Make sure it is in the same folder as survey.py."
+        )
+        st.stop()
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            questions = json.load(f)
+
+        if not isinstance(questions, list) or len(questions) == 0:
+            st.error("The questions JSON file is empty or invalid.")
+            st.stop()
+
+        return questions
+    except Exception as e:
+        st.error(f"Could not read questions file: {e}")
+        st.stop()
+
+
+QUESTIONS: list = load_questions(QUESTIONS_FILE)
+QUESTION_COUNT: int = len(QUESTIONS)
 
 # ─── Psychological state bands ────────────────────────────────────────────────
 STATES: list = [
@@ -76,15 +106,9 @@ STATES: list = [
 # ─── User-defined functions ───────────────────────────────────────────────────
 
 def validate_name_chars(name: str) -> tuple:
-    """
-    Validate that a name only contains letters, hyphens, apostrophes, and spaces.
-    Supports names like O'Connor, Smith-Jones, Mary Ann.
-    Uses a FOR loop to inspect every character (criterion: for loop validation).
-    Returns (is_valid: bool, error_message: str).
-    """
     if not name.strip():
         return False, "This field cannot be empty."
-    for char in name:                                  # for loop – character check
+    for char in name:
         if not (char.isalpha() or char in ALLOWED_CHARS):
             return False, (
                 f"Invalid character '{char}'. "
@@ -94,11 +118,6 @@ def validate_name_chars(name: str) -> tuple:
 
 
 def validate_dob(dob_str: str) -> tuple:
-    """
-    Validate date of birth in DD/MM/YYYY format.
-    The date must exist and must be in the past.
-    Returns (is_valid: bool, error_message: str).
-    """
     try:
         parsed: datetime = datetime.strptime(dob_str.strip(), "%d/%m/%Y")
         if parsed >= datetime.today():
@@ -109,49 +128,35 @@ def validate_dob(dob_str: str) -> tuple:
 
 
 def validate_student_id(sid: str) -> tuple:
-    """
-    Validate that Student ID is non-empty and contains digits only.
-    Uses a FOR loop to check every character (criterion: for loop validation).
-    Returns (is_valid: bool, error_message: str).
-    """
     if not sid.strip():
         return False, "Student ID cannot be empty."
-    for ch in sid:                                     # for loop – digit check
+    for ch in sid:
         if not ch.isdigit():
             return False, "Student ID must contain digits only."
     return True, ""
 
 
 def compute_score(answers: list) -> int:
-    """
-    Sum all answer scores using a WHILE loop (criterion: while loop).
-    """
     total: int = 0
-    i: int     = 0
-    while i < len(answers):                            # while loop – accumulate score
+    i: int = 0
+    while i < len(answers):
         total += answers[i]["score"]
         i += 1
     return total
 
 
 def get_state(score: int) -> dict:
-    """Return the matching psychological state dict for a given total score."""
     for state in STATES:
         if state["min_score"] <= score <= state["max_score"]:
             return state
-    return STATES[-1]                                  # fallback
+    return STATES[-1]
 
 
 def build_result(user_info: dict, answers: list) -> dict:
-    """
-    Assemble the final result dictionary.
-    Uses IF / ELIF / ELSE conditional statements (criterion: >= 3 conditionals).
-    """
-    total_score: int  = compute_score(answers)
+    total_score: int = compute_score(answers)
     percentage: float = round((total_score / (QUESTION_COUNT * MAX_OPTION_SCORE)) * 100, 2)
-    state: dict       = get_state(total_score)
+    state: dict = get_state(total_score)
 
-    # IF / ELIF / ELSE chain (criterion)
     if total_score <= 12:
         note: str = "Excellent! Keep up the great work."
     elif total_score <= 24:
@@ -164,25 +169,25 @@ def build_result(user_info: dict, answers: list) -> dict:
         note = "Seeking guidance on goal-setting strategies is strongly advised."
 
     return {
-        "surname":       user_info["surname"],
-        "given_name":    user_info["given_name"],
-        "dob":           user_info["dob"],
-        "student_id":    user_info["student_id"],
-        "date_taken":    datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "total_score":   total_score,
-        "percentage":    percentage,
-        "state":         state,
+        "surname": user_info["surname"],
+        "given_name": user_info["given_name"],
+        "dob": user_info["dob"],
+        "student_id": user_info["student_id"],
+        "date_taken": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "total_score": total_score,
+        "percentage": percentage,
+        "state": state,
         "category_note": note,
-        "answers":       answers
+        "answers": answers
     }
 
 
-# ─── Session state initialisation ────────────────────────────────────────────
+# ─── Session state initialisation ─────────────────────────────────────────────
 if "page" not in st.session_state:
     st.session_state.page = "menu"
 
 
-# ─── Page: Menu ───────────────────────────────────────────────────────────────
+# ─── Page: Menu ────────────────────────────────────────────────────────────────
 def page_menu() -> None:
     st.title("📋 " + SURVEY_TITLE)
     st.caption("Westminster International University in Tashkent · 4BUIS008C")
@@ -191,7 +196,7 @@ def page_menu() -> None:
     st.write("Choose an option to get started:")
     st.write("")
 
-    for i, option in enumerate(MENU_OPTIONS):          # for loop – render menu buttons
+    for i, option in enumerate(MENU_OPTIONS):
         if st.button(option, key=f"menu_{i}", use_container_width=True):
             if i == 0:
                 st.session_state.page = "details"
@@ -210,25 +215,33 @@ def page_details() -> None:
     prev: dict = st.session_state.get("user_info", {})
 
     with st.form("details_form"):
-        surname    = st.text_input("Surname *",
-                                   value=prev.get("surname", ""),
-                                   placeholder="e.g. Smith-Jones")
-        given_name = st.text_input("Given Name *",
-                                   value=prev.get("given_name", ""),
-                                   placeholder="e.g. Mary Ann")
-        dob        = st.text_input("Date of Birth * (DD/MM/YYYY)",
-                                   value=prev.get("dob", ""),
-                                   placeholder="15/03/2003")
-        student_id = st.text_input("Student ID * (digits only)",
-                                   value=prev.get("student_id", ""),
-                                   placeholder="202301234")
+        surname = st.text_input(
+            "Surname *",
+            value=prev.get("surname", ""),
+            placeholder="e.g. Smith-Jones"
+        )
+        given_name = st.text_input(
+            "Given Name *",
+            value=prev.get("given_name", ""),
+            placeholder="e.g. Mary Ann"
+        )
+        dob = st.text_input(
+            "Date of Birth * (DD/MM/YYYY)",
+            value=prev.get("dob", ""),
+            placeholder="15/03/2003"
+        )
+        student_id = st.text_input(
+            "Student ID * (digits only)",
+            value=prev.get("student_id", ""),
+            placeholder="202301234"
+        )
+
         st.write("")
         col1, col2 = st.columns(2)
         with col1:
-            back    = st.form_submit_button("← Back",     use_container_width=True)
+            back = st.form_submit_button("← Back", use_container_width=True)
         with col2:
-            proceed = st.form_submit_button("Continue →", use_container_width=True,
-                                            type="primary")
+            proceed = st.form_submit_button("Continue →", use_container_width=True, type="primary")
 
     if back:
         st.session_state.page = "menu"
@@ -254,13 +267,13 @@ def page_details() -> None:
             errors.append(f"**Student ID:** {err}")
 
         if errors:
-            for e in errors:                           # for loop – display each error
+            for e in errors:
                 st.error(e)
         else:
             st.session_state.user_info = {
-                "surname":    surname.strip(),
+                "surname": surname.strip(),
                 "given_name": given_name.strip(),
-                "dob":        dob.strip(),
+                "dob": dob.strip(),
                 "student_id": student_id.strip()
             }
             st.session_state.page = "survey"
@@ -277,7 +290,7 @@ def page_survey() -> None:
     with st.form("survey_form"):
         selected_labels: dict = {}
 
-        for i, question in enumerate(QUESTIONS):       # for loop – render all questions
+        for i, question in enumerate(QUESTIONS):
             labels: list = [opt["label"] for opt in question["options"]]
             choice = st.radio(
                 label=f"**Q{i + 1}.** {question['text']}",
@@ -291,20 +304,19 @@ def page_survey() -> None:
         st.divider()
         col1, col2 = st.columns(2)
         with col1:
-            back   = st.form_submit_button("← Back",          use_container_width=True)
+            back = st.form_submit_button("← Back", use_container_width=True)
         with col2:
-            submit = st.form_submit_button("Submit Answers →", use_container_width=True,
-                                           type="primary")
+            submit = st.form_submit_button("Submit Answers →", use_container_width=True, type="primary")
 
     if back:
         st.session_state.page = "details"
         st.rerun()
 
     if submit:
-        unanswered: list   = []
-        all_answered: bool = True                      # bool variable
+        unanswered: list = []
+        all_answered: bool = True
 
-        for qid, label in selected_labels.items():    # for loop – completeness check
+        for qid, label in selected_labels.items():
             if label is None:
                 unanswered.append(qid)
                 all_answered = False
@@ -314,14 +326,14 @@ def page_survey() -> None:
             st.error(f"⚠️ Please answer every question. Missing: {nums}")
         else:
             answers: list = []
-            for question in QUESTIONS:                 # for loop – build answers list
+            for question in QUESTIONS:
                 chosen: str = selected_labels[question["id"]]
                 for opt in question["options"]:
                     if opt["label"] == chosen:
                         answers.append({
-                            "question_id":  question["id"],
+                            "question_id": question["id"],
                             "answer_label": chosen,
-                            "score":        opt["score"]
+                            "score": opt["score"]
                         })
                         break
 
@@ -349,7 +361,7 @@ def page_results() -> None:
     st.divider()
 
     state_info: dict = result["state"]
-    emoji: str       = state_info.get("emoji", "📊")
+    emoji: str = state_info.get("emoji", "📊")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -358,8 +370,7 @@ def page_results() -> None:
         st.info(f"🪪 **Student ID:** {result['student_id']}")
         st.info(f"📅 **Date Taken:** {result['date_taken']}")
     with col2:
-        st.metric("Total Score",
-                  f"{result['total_score']} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
+        st.metric("Total Score", f"{result['total_score']} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
         st.metric("Percentage", f"{result['percentage']} %")
 
     st.divider()
@@ -369,7 +380,6 @@ def page_results() -> None:
     st.info(f"💡 {result['category_note']}")
     st.divider()
 
-    # JSON download – persistence criterion (LO3)
     json_str: str = json.dumps(result, indent=4, ensure_ascii=False)
     filename: str = f"{result['student_id']}_survey_result.json"
 
@@ -380,9 +390,10 @@ def page_results() -> None:
         mime="application/json",
         use_container_width=True
     )
+
     st.write("")
     if st.button("🔄  Take Survey Again", use_container_width=True):
-        for key in list(st.session_state.keys()):     # for loop – clear all state
+        for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
@@ -398,9 +409,9 @@ def page_load() -> None:
 
     if uploaded is not None:
         try:
-            result: dict     = json.load(uploaded)
+            result: dict = json.load(uploaded)
             state_info: dict = result.get("state", {})
-            emoji: str       = state_info.get("emoji", "📊")
+            emoji: str = state_info.get("emoji", "📊")
 
             st.success("✅ File loaded successfully!")
             st.divider()
@@ -412,8 +423,7 @@ def page_load() -> None:
                 st.info(f"🪪 **Student ID:** {result.get('student_id','?')}")
                 st.info(f"📅 **Date Taken:** {result.get('date_taken','?')}")
             with col2:
-                st.metric("Total Score",
-                          f"{result.get('total_score','?')} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
+                st.metric("Total Score", f"{result.get('total_score','?')} / {QUESTION_COUNT * MAX_OPTION_SCORE}")
                 st.metric("Percentage", f"{result.get('percentage','?')} %")
 
             st.divider()
@@ -432,7 +442,7 @@ def page_load() -> None:
         st.rerun()
 
 
-# ─── Router – runs on every Streamlit rerun ──────────────────────────────────
+# ─── Router – runs on every Streamlit rerun ───────────────────────────────────
 current_page: str = st.session_state.page
 
 if current_page == "menu":
@@ -445,6 +455,6 @@ elif current_page == "results":
     page_results()
 elif current_page == "load":
     page_load()
-else:                                                  # else branch – safety fallback
+else:
     st.session_state.page = "menu"
     st.rerun()
